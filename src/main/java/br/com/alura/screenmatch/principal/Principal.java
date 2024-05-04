@@ -1,0 +1,85 @@
+package br.com.alura.screenmatch.principal;
+
+import br.com.alura.screenmatch.model.DadosEpisodios;
+import br.com.alura.screenmatch.model.DadosSerie;
+import br.com.alura.screenmatch.model.DadosTemporada;
+import br.com.alura.screenmatch.service.ConsumoApi;
+import br.com.alura.screenmatch.service.ConverteDados;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+public class Principal {
+
+    private Scanner leitura = new Scanner(System.in);
+    private ConsumoApi consumo = new ConsumoApi();
+    private ConverteDados conversor = new ConverteDados();
+
+    private final String ENDERECO = "https://www.omdbapi.com/?t=";
+    private final String API_KEY = "&apikey=7af99d55";
+
+    public void exibeMenu(){
+        System.out.println("Digite o nome da série para a busca");
+        var nomeSerie = leitura.nextLine();
+        var json = consumo.obterDados(
+                ENDERECO
+                + nomeSerie.replace(" ", "+")
+                + API_KEY);
+        DadosSerie dados = conversor.obterDados(json, DadosSerie.class);
+        System.out.println(dados);
+
+        //Aqui cria uma lista para as temporadas
+        // e para cada temporada, adiciona os dados dela
+        List<DadosTemporada> temporadas = new ArrayList<>();
+        for (int i =1; i <= dados.totalTemporadas(); i++){
+            json = consumo.obterDados(
+                    ENDERECO
+                            + nomeSerie.replace(" ", "+")
+                            + "&season=" + i
+                            + API_KEY);
+            DadosTemporada dadosTemporada = conversor.obterDados(json, DadosTemporada.class);
+            temporadas.add(dadosTemporada);
+        }
+        temporadas.forEach(System.out::println);
+
+//        for (int i = 0; i < dados.totalTemporadas(); i++){
+//            List<DadosEpisodios> episodiosTemporada = temporadas.get(i).episodios();
+//            for (int j = 0; j < episodiosTemporada.size(); j++){
+//                System.out.println(episodiosTemporada.get(j).titulo());
+//            }
+//        }
+
+        //O código abaixo é a mesma coisa que o for acima
+        temporadas.forEach( //Pegou as temporadas e chamou de "t",
+                //pegou os episodios delas
+                //chamou os eps de "e" e imprimiu cada
+                t -> t.episodios() //esses -> são os lambdas
+                        .forEach(e -> System.out.println(e.titulo())));
+
+        //Um Stream é um fluxo de dados.
+        // Por exemplo, cada temporada ou episódio
+        // pode ser visto como um fluxo de dados.
+        //Elas permitem realizar operações de forma
+        // mais eficiente e concisa, utilizando
+        // uma abordagem funcional.
+
+        List<DadosEpisodios> dadosEpisodios = temporadas.stream()
+                .flatMap(t -> t.episodios().stream())
+                .collect(Collectors.toList());
+
+        System.out.println("\nTop 5 episódios: ");
+        dadosEpisodios.stream()
+                .filter(e -> !e.avaliacao().equalsIgnoreCase("N/A"))
+                .sorted(Comparator.comparing(DadosEpisodios::avaliacao).reversed())
+                .limit(5)
+                .forEach(System.out::println);
+    }
+}
+//   ********Exemplo de streams********
+//        List<String> nomes = Arrays.asList("Jacque", "Iasmin", "Paulo", "Rodrigo", "Nico");
+//        nomes.stream()
+//                .sorted()
+//                .limit(3)
+//                .filter(n -> n.startsWith("N"))
+//                .map(n -> n.toUpperCase())
+//                .forEach(System.out::println);
